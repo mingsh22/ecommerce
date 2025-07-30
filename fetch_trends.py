@@ -3,17 +3,42 @@ import pandas as pd
 import time
 import random
 
-# ✅ List your products here
+# List your products here
 products = [
-    "adjustable dumbbells", "Massage Gun", "kettlebell", "yoga mat", "pull up bar",
-    "pickleball paddle", "tennis racket bag", "ski goggles", "Jump Rope", "ski glove", "ski boot bag", "neck warmer"
+    "adjustable dumbbells",
+    "Massage Gun",
+    "kettlebell",
+    "yoga mat",
+    "pull up bar",
+    "pickleball paddle",
+    "tennis racket bag",
+    "ski goggles",
+    "Jump Rope",
+    "ski glove",
+    "ski boot bag",
+    "neck warmer",
+    "Resistance Band",
+    "Weighted Vest",
+    "Ab Roller",
+    "Yoga Blocks",
+    "Fitness Tracker",
+    "Foam Roller",
+    "Pull-Up Bar",
+    "Ankle Weights",
+    "Battle Ropes",
+    "Collapsible Water Bottle",
+    "Grip Strengthener",
+    "Balance Pad",
+    "Protein Shaker",
+    "Jump Box",
+    "Under-Desk Elliptical",
 ]
 
 pytrends = TrendReq(hl='en-US', tz=360)
 batch_size = 5
 all_data = {}
 
-# ✅ Helper to fetch one batch, with retries
+# Helper to fetch one batch, with retries
 def get_batch_data(batch, max_retries=5):
     wait = 5  # Initial wait time in seconds
     for attempt in range(max_retries):
@@ -24,23 +49,23 @@ def get_batch_data(batch, max_retries=5):
                 df = df.drop(columns=['isPartial'])
             return df
         except Exception as e:
-            print(f"❌ Error on attempt {attempt+1} for batch {batch}: {e}")
+            print(f"Error on attempt {attempt+1} for batch {batch}: {e}")
             time.sleep(wait)
             wait *= 2  # Exponential backoff
     return None
 
-# ✅ Fetch in batches
+# Fetch in batches
 for i in range(0, len(products), batch_size):
     batch = products[i:i + batch_size]
-    print(f"🔍 Fetching: {batch}")
+    print(f"Fetching: {batch}")
     df_batch = get_batch_data(batch)
     if df_batch is not None:
         for col in df_batch.columns:
             all_data[col] = df_batch[col]
     time.sleep(random.uniform(15, 25))  # Random delay between 15-25 sec per batch
 
-# ✅ Combine & Save
+# Combine & Save
 combined_df = pd.DataFrame(all_data)
 combined_df.index.name = 'date'
 combined_df.to_csv("trend_data.csv")
-print("✅ Data saved to trend_data.csv")
+print("Data saved to trend_data.csv")
