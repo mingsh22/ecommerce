@@ -1,7 +1,5 @@
 import csv
 import os
-import requests
-from io import BytesIO
 import json
 import re
 from openai import OpenAI
@@ -10,8 +8,8 @@ from openai import OpenAI
 # SETTINGS
 # =============================
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-INPUT_CSV = "shopify_export.csv"
-OUTPUT_CSV = "shopify_updated.csv"
+INPUT_CSV = "products_export.csv"
+OUTPUT_CSV = "products_updated.csv"
 MODEL = "gpt-4o"
 WORD_COUNT = 600
 
@@ -30,6 +28,28 @@ CATEGORY_TONE_GUIDE = {
     "Electronics": {
         "voice": "Technical, informative but user-friendly tone",
         "common_sections": ["Why This Device Stands Out", "Specifications", "How to Use", "Pro Tips for Best Results"]
+    },
+    "Exercise Equipment & Recovery": {
+        "voice": "Motivational, confident, and empowering tone that inspires fitness progress and emphasizes durability, safety, and performance benefits.",
+        "common_sections": [
+            "Enhance Your Training",
+            "Why This Equipment Works",
+            "Ideal For",
+            "Key Features",
+            "Care & Maintenance Tips",
+            "How to Get Started"
+        ]
+    },
+    "Workout Accessories": {
+        "voice": "Supportive, energetic, and practical tone that encourages an active lifestyle and highlights how accessories improve workouts, comfort, and convenience.",
+        "common_sections": [
+            "Elevate Your Workout",
+            "Why You'll Love This Accessory",
+            "Perfect For",
+            "Key Benefits",
+            "Product Specifications",
+            "Tips for Best Results"
+        ]
     },
     "Default": {
         "voice": "Friendly and persuasive product marketing tone",
@@ -114,7 +134,26 @@ def generate_product_content(title, body, category, image_url, primary_keyword, 
     common_sections = ", ".join(tone_info["common_sections"])
 
     prompt = f"""
-You are rewriting and optimizing a Shopify product description for the category: {category}.
+You are rewriting and optimizing a Shopify product description.
+
+Please follow these rules carefully:
+
+- Do NOT mention or disclose that the product is sourced from other wholesalers or suppliers. Present the product as if it comes directly from the source.
+- Avoid using the word "wholesale" or any related terms anywhere in the description.
+- Avoid using gender-specific words such as "women," "men," "female," or "male."
+- Avoid mentioning very specific colors or color details.
+- Avoid generic hype adjectives such as "Unmatched," "Unparalleled," "World-class," or similar superlatives.
+- Use genuine, product-specific adjectives like "comfortable," "supportive," "durable," or "breathable" based on the product details.
+- Do not include any URLs, image links, or references to pictures in the description.
+- Write a unique, {WORD_COUNT}+ word SEO-optimized HTML description that:
+  - Matches the tone: {tone_voice}
+  - Maintains ~1% primary keyword density.
+  - Maintains ~0.5–1% related keyword density.
+  - Uses sentences under 20 words.
+  - Is Shopify-compatible HTML.
+- Use a semi-dynamic structure based on the product category, including headings (<h2>, <h3>) and bullet points.
+- Include an FAQ only if relevant (2–4 questions).
+- Do not mention the presence of images or external links.
 
 Product title: {title}
 Current description: {body}
@@ -122,33 +161,8 @@ Primary keyword: {primary_keyword}
 Related keywords: {", ".join(related_keywords)}
 Image URL: {image_url if image_url else 'No image provided'}
 
-TASKS:
-1. Review the product title, existing description, and image URL (if any).
-2. Write a unique, {WORD_COUNT}+ word SEO-optimized HTML description that:
-   - Matches the tone: {tone_voice}
-   - Maintains ~1% primary keyword density.
-   - Maintains ~0.5–1% related keyword density.
-   - Uses sentences under 20 words.
-   - HTML is Shopify-compatible.
-
-3. Use a semi-dynamic structure:
-   - Base structure around these common sections for {category}: {common_sections}
-   - Add or remove sections based on the product’s unique qualities.
-   - Change order or heading wording slightly for variety.
-   - Use <h2> for main headings, <h3> for subheadings.
-   - Include bullet points where helpful.
-   - Include an FAQ only if relevant (2–4 questions).
-
-4. Suggest:
-   - SEO title (≤60 characters, keyword at front)
-   - SEO meta description (≤160 characters, keyword once, persuasive tone)
-
-Return the result in JSON format:
-{{
-  "description_html": "...",
-  "seo_title": "...",
-  "seo_meta": "..."
-}}
+Return the result in JSON format with keys:
+"description_html", "seo_title", "seo_meta".
 """
 
     try:
