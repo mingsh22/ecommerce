@@ -1,50 +1,226 @@
-# Summary of the Python Script
-# Fetches all draft Shopify products tagged dsers-new using the Shopify Admin API, handling pagination.
+# 📜 Script Summary – Shopify Product Processing with AI & Duplicate Protection
+# This script automates the updating of new Shopify products (imported from DSers and set to Draft), using the Shopify Admin API and OpenAI GPT to optimize titles, descriptions, SEO metadata, and handles while preventing duplicates.
+# 
+# 1️⃣ Shopify Connection & Settings
+# Environment Variables:
+# 
+# SHOPIFY_STORE → Your Shopify store subdomain (e.g., my-store-name)
+# 
+# SHOPIFY_TOKEN → Shopify Admin API Access Token
+# 
+# OPENAI_API_KEY → OpenAI API Key
+# 
+# API Version: Uses 2025-01 for compatibility with Shopify Admin API.
+# 
+# Headers: Adds X-Shopify-Access-Token for authentication.
+# 
+# 2️⃣ Category Tone Guide
+# Maintains a dictionary of product categories (Sportswear, Exercise Equipment & Recovery, Workout Accessories, Default)
+# 
+# Each category defines:
+# 
+# Voice/Tone for writing.
+# 
+# Common Sections to structure the description.
+# 
+# 3️⃣ Duplicate Prevention
+# In-memory sets:
+# 
+# existing_handles & existing_titles → Loaded from all products in Shopify at script start.
+# 
+# seen_handles & seen_titles → Tracks handles/titles generated during the current script run.
+# 
+# Prevents duplication by checking against both current run and store-wide data.
+# 
+# Uses incremental suffixing (e.g., handle, handle-1, handle-2) until a unique one is found.
+# 
+# 4️⃣ Data Preloading
+# preload_existing_handles_titles()
+# 
+# Calls /products.json in multiple pages until all products are fetched.
+# 
+# Saves existing handles and titles into sets for fast duplicate checking.
+# 
+# 5️⃣ Filtering Target Products
+# get_draft_dsers_products():
+# 
+# Fetches products with status=draft.
+# 
+# Filters to only those containing the tag dsers-new (case-insensitive).
+# 
+# Ensures only newly imported DSers products are processed.
+# 
+# 6️⃣ AI-Powered Processing
+# a) Guess Category
+# guess_category_from_title():
+# 
+# Sends title to GPT to predict category from 4 fixed options.
+# 
+# Defaults to "Default" if GPT output is invalid.
+# 
+# b) Extract Keywords
+# generate_keywords():
+# 
+# Uses GPT to extract:
+# 
+# Primary Keyword (2–4 words, high search volume).
+# 
+# 3–5 Related Keywords.
+# 
+# Returns defaults if GPT fails.
+# 
+# c) Generate Unique Handle
+# generate_unique_handle():
+# 
+# Builds a slug from primary keyword + first related keyword.
+# 
+# Strips special characters, limits to 5 words.
+# 
+# Ensures uniqueness by checking against:
+# 
+# Already processed handles (seen_handles).
+# 
+# Shopify store-wide handles (existing_handles).
+# 
+# d) Ensure Unique Title
+# ensure_unique_title():
+# 
+# Removes "Sports eHarmony Living" from title.
+# 
+# Avoids duplicates by checking against:
+# 
+# Already processed titles (seen_titles).
+# 
+# Shopify store-wide titles (existing_titles).
+# 
+# Adds numeric suffix (1), (2), etc. if needed.
+# 
+# e) Rewrite Product Content
+# generate_product_content():
+# 
+# Uses GPT to rewrite and optimize product description with rules:
+# 
+# Do NOT:
+# 
+# Use "Sports eHarmony Living" in title.
+# 
+# Mention customization or shipping.
+# 
+# Use gender-specific words.
+# 
+# Mention exact colors.
+# 
+# Use hype words like "unmatched".
+# 
+# Must:
+# 
+# Have ≥600 words.
+# 
+# Use ~1% density for primary keyword.
+# 
+# Use ~0.5–1% density for related keywords.
+# 
+# Format in Shopify HTML.
+# 
+# Returns:
+# 
+# New description_html.
+# 
+# SEO title.
+# 
+# SEO meta description.
+# 
+# 7️⃣ Shopify Updates
+# For each product:
+# 
+# Logs:
+# 
+# Prints original title, primary keyword, related keywords, and tone guide for verification.
+# 
+# Updates Product:
+# 
+# shopify_update_product() updates:
+# 
+# Title.
+# 
+# Body HTML.
+# 
+# Handle.
+# 
+# SEO Title Tag.
+# 
+# SEO Meta Description Tag.
+# 
+# Redirects:
+# 
+# If handle changes, shopify_create_redirect() creates a permanent redirect from old → new handle.
+# 
+# Removes dsers-new Tag:
+# 
+# shopify_remove_dsers_tag() removes dsers-new while preserving all other tags, ensuring the product isn’t reprocessed in future runs.
+# 
+# 8️⃣ Execution Flow
+# Preload all existing handles & titles from Shopify.
+# 
+# Get only draft products with dsers-new tag.
 # 
 # For each product:
-# Uses OpenAI to generate:
-# SEO-optimized primary and related keywords.
-# A rewritten, unique, SEO-friendly product description in Shopify-compatible HTML.
-# Automatically guesses product category if missing, to guide tone and style.
-# Generates a unique SEO-friendly handle based on keywords, avoiding duplicates by tracking used handles in a file.
-# Ensures the new SEO title is unique by checking and incrementing duplicates using a persistent log.
-# Updates the product via Shopify API with:
-# New title, description (Body HTML), handle.
-# SEO meta title and description (stored in metafields).
-# Removes the dsers-new tag to prevent reprocessing.
-# If the product handle changes, creates a Shopify URL redirect from the old handle to the new handle to preserve SEO juice.
-# Logs every product update (product ID, old/new handle, old/new title) to a CSV file for audit and tracking.
-# The script includes error handling and JSON parsing safeguards, and respects Shopify API rate limits by pausing between requests.
-# Uses environment variables to securely load Shopify store name, API token, and OpenAI API key.
+# 
+# Guess category.
+# 
+# Generate keywords.
+# 
+# Generate unique handle.
+# 
+# Ensure unique title.
+# 
+# Generate optimized description + SEO metadata.
+# 
+# Update product via Shopify API.
+# 
+# Create redirect if handle changed.
+# 
+# Remove dsers-new tag.
+# 
+# Print a confirmation log for each product updated.
+# 
+# ✅ Key Benefits
+# No CSV export/import needed → Direct Shopify API updates.
+# 
+# Fast duplicate prevention via preloading store data.
+# 
+# SEO-optimized content automatically generated.
+# 
+# Zero reprocessing — products lose dsers-new tag after first run.
+# 
+# Redirect safety when changing handles (preserves SEO & bookmarks).
+# 
+# Full logging for tracking what was updated.
+
 
 import os
 import re
 import json
-import csv
-import time
 import requests
 from openai import OpenAI
+from urllib.parse import quote
 
 # =============================
 # SETTINGS
 # =============================
-SHOPIFY_STORE = os.getenv("SHOPIFY_STORE", "your-store-name")  # e.g. myshop
-ACCESS_TOKEN = os.getenv("SHOPIFY_API_TOKEN", "your-access-token")
-API_VERSION = "2025-07"
-MODEL = "gpt-4o"
-WORD_COUNT = 600
-
-USED_HANDLES_FILE = "used_handles.txt"
-USED_TITLES_FILE = "used_titles.txt"
-LOG_FILE = "product_update_log.csv"
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+SHOPIFY_STORE = os.getenv("SHOPIFY_STORE")  # e.g., "my-store-name"
+SHOPIFY_TOKEN = os.getenv("SHOPIFY_API_TOKEN")  # Admin API Access Token
+API_VERSION = "2025-01"
 
 BASE_URL = f"https://{SHOPIFY_STORE}.myshopify.com/admin/api/{API_VERSION}"
 HEADERS = {
-    "Content-Type": "application/json",
-    "X-Shopify-Access-Token": ACCESS_TOKEN
+    "X-Shopify-Access-Token": SHOPIFY_TOKEN,
+    "Content-Type": "application/json"
 }
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+WORD_COUNT = 600
+MODEL = "gpt-4o"
 
 CATEGORY_TONE_GUIDE = {
     "Sportswear": {
@@ -66,59 +242,66 @@ CATEGORY_TONE_GUIDE = {
 }
 
 # =============================
-# HELPERS
+# MEMORY FOR DUPLICATES
 # =============================
-def shopify_get_draft_products_with_tag(tag):
-    """Fetch draft products with specific tag."""
-    products = []
-    url = f"{BASE_URL}/products.json?status=draft&limit=250&fields=id,title,body_html,handle,product_type,tags"
+seen_handles = set()
+seen_titles = set()
+existing_handles = set()
+existing_titles = set()
+
+# =============================
+# SHOPIFY HELPERS
+# =============================
+def preload_existing_handles_titles():
+    """Fetch all existing product handles and titles using cursor-based pagination."""
+    url = f"{BASE_URL}/products.json?limit=250"
+    
     while url:
         resp = requests.get(url, headers=HEADERS)
         resp.raise_for_status()
-        data = resp.json()
-        for p in data.get("products", []):
-            tags = p.get("tags", "")
-            tag_list = [t.strip().lower() for t in tags.split(",")] if tags else []
-            if tag.lower() in tag_list:
-                products.append(p)
+        
+        products = resp.json().get("products", [])
+        for p in products:
+            existing_handles.add(p["handle"].strip().lower())
+            existing_titles.add(p["title"].strip().lower())
+        
+        # Check for next page in Link header
+        link_header = resp.headers.get("Link", "")
+        next_url = None
+        if 'rel="next"' in link_header:
+            match = re.search(r'<([^>]+)>; rel="next"', link_header)
+            if match:
+                next_url = match.group(1)
+        url = next_url
+    
+    print(f"📦 Preloaded {len(existing_handles)} handles and {len(existing_titles)} titles from Shopify.")
 
-        # Pagination
-        link_header = resp.headers.get("Link")
-        if link_header and 'rel="next"' in link_header:
-            for part in link_header.split(","):
-                if 'rel="next"' in part:
-                    url = part[part.find("<")+1:part.find(">")]
-                    break
-        else:
-            url = None
-    return products
+def get_draft_dsers_products():
+    """Get only draft products with tag 'dsers-new'."""
+    url = f"{BASE_URL}/products.json?status=draft&limit=250"
+    resp = requests.get(url, headers=HEADERS)
+    resp.raise_for_status()
+    products = resp.json().get("products", [])
+    filtered = [p for p in products if any("dsers-new" in t.lower() for t in p.get("tags", "").split(","))]
+    print(f"📋 Found {len(filtered)} draft products tagged 'dsers-new'.")
+    return filtered
 
-def shopify_update_product(product_id, title, body_html, handle, seo_title, seo_desc, old_tags):
-    """Update product info and remove the 'dsers-new' tag."""
-    # Remove 'dsers-new' tag (case insensitive)
-    tags = [t.strip() for t in old_tags.split(",")] if old_tags else []
-    tags = [t for t in tags if t.lower() != "dsers-new"]
-    new_tags = ", ".join(tags)
-
+def shopify_update_product(product_id, title, body_html, handle, seo_title, seo_meta):
     payload = {
         "product": {
             "id": product_id,
             "title": title,
             "body_html": body_html,
             "handle": handle,
-            "tags": new_tags,
             "metafields_global_title_tag": seo_title,
-            "metafields_global_description_tag": seo_desc
+            "metafields_global_description_tag": seo_meta
         }
     }
     resp = requests.put(f"{BASE_URL}/products/{product_id}.json", headers=HEADERS, json=payload)
-    if resp.status_code == 200:
-        print(f"✅ Updated product {product_id}")
-    else:
-        print(f"⚠️ Failed to update product {product_id}: {resp.text}")
+    resp.raise_for_status()
+    print(f"✅ Updated product {product_id} → {title}")
 
 def shopify_create_redirect(old_handle, new_handle):
-    """Create redirect for SEO."""
     payload = {
         "redirect": {
             "path": f"/products/{old_handle}",
@@ -126,11 +309,25 @@ def shopify_create_redirect(old_handle, new_handle):
         }
     }
     resp = requests.post(f"{BASE_URL}/redirects.json", headers=HEADERS, json=payload)
-    if resp.status_code == 201:
-        print(f"🔀 Redirect created: {old_handle} -> {new_handle}")
-    else:
-        print(f"⚠️ Failed to create redirect: {resp.text}")
+    resp.raise_for_status()
+    print(f"🔄 Redirect created: {old_handle} → {new_handle}")
 
+def shopify_remove_dsers_tag(product_id, tags):
+    """Remove dsers-new tag but keep others."""
+    updated_tags = [t.strip() for t in tags.split(",") if t.strip().lower() != "dsers-new"]
+    payload = {
+        "product": {
+            "id": product_id,
+            "tags": ", ".join(updated_tags)
+        }
+    }
+    resp = requests.put(f"{BASE_URL}/products/{product_id}.json", headers=HEADERS, json=payload)
+    resp.raise_for_status()
+    print(f"🏷️ Removed 'dsers-new' tag from product {product_id}")
+
+# =============================
+# AI HELPERS
+# =============================
 def safe_json_loads(text):
     try:
         json_match = re.search(r'\{.*\}', text, re.DOTALL)
@@ -141,16 +338,14 @@ def safe_json_loads(text):
 
 def guess_category_from_title(title):
     prompt = f"""
-You are an expert product categorizer.
-Given this product title, guess the best product category from this list:
+Given this product title, guess the best category from:
 - Sportswear
 - Exercise Equipment & Recovery
 - Workout Accessories
 - Default
 
-Return exactly one category name from the list above.
-
-Product Title: "{title}"
+Return exactly one category name.
+Title: "{title}"
 """
     try:
         response = client.chat.completions.create(
@@ -158,20 +353,21 @@ Product Title: "{title}"
             messages=[{"role": "user", "content": prompt}],
             temperature=0
         )
-        category_guess = response.choices[0].message.content.strip()
-        return category_guess if category_guess in CATEGORY_TONE_GUIDE else "Default"
+        cat = response.choices[0].message.content.strip()
+        return cat if cat in CATEGORY_TONE_GUIDE else "Default"
     except:
         return "Default"
 
 def generate_keywords(title, body):
     prompt = f"""
-You are an SEO keyword expert.
-From the product title and description below, find:
-1. Primary keyword (2–4 words) with high search volume.
-2. 3–5 related keywords (2–3 words).
-
+From the title and description, find:
+1. Primary keyword (2-4 words, high search volume)
+2. 3–5 related keywords
 Return JSON:
-{{ "primary": "keyword", "related": ["kw1", "kw2", "kw3"] }}
+{{
+  "primary": "keyword",
+  "related": ["kw1", "kw2", "kw3"]
+}}
 
 Title: {title}
 Description: {body}
@@ -188,67 +384,61 @@ Description: {body}
         return "product", ["shop", "buy online", "best deal"]
 
 def generate_unique_handle(primary_kw, descriptor):
-    handle_base = f"{primary_kw} {descriptor}".lower()
-    handle_base = re.sub(r'[^a-z0-9\s-]', '', handle_base)
-    handle_base = re.sub(r'\s+', '-', handle_base.strip())
-    words = handle_base.split('-')[:5]
-    handle_candidate = "-".join(words)
-
-    existing = set()
-    if os.path.exists(USED_HANDLES_FILE):
-        with open(USED_HANDLES_FILE, "r") as f:
-            existing = set(line.strip() for line in f)
-
-    if handle_candidate in existing:
-        suffix = 1
-        while f"{handle_candidate}-a{suffix}" in existing:
-            suffix += 1
-        handle_candidate = f"{handle_candidate}-a{suffix}"
-
-    with open(USED_HANDLES_FILE, "a") as f:
-        f.write(handle_candidate + "\n")
-
-    return handle_candidate
+    base = f"{primary_kw} {descriptor}".lower()
+    base = re.sub(r'[^a-z0-9\s-]', '', base)
+    base = re.sub(r'\s+', '-', base.strip())
+    base = "-".join(base.split('-')[:5])
+    candidate = base
+    suffix = 1
+    while candidate in seen_handles or candidate in existing_handles:
+        print(f"⚠️ Duplicate handle '{candidate}', trying new one...")
+        candidate = f"{base}-{suffix}"
+        suffix += 1
+    seen_handles.add(candidate)
+    existing_handles.add(candidate)
+    return candidate
 
 def ensure_unique_title(title):
-    existing = set()
-    if os.path.exists(USED_TITLES_FILE):
-        with open(USED_TITLES_FILE, "r") as f:
-            existing = set(line.strip() for line in f)
-
-    new_title = title
-    if new_title in existing:
-        suffix = 1
-        while f"{new_title} ({suffix})" in existing:
-            suffix += 1
-        new_title = f"{new_title} ({suffix})"
-
-    with open(USED_TITLES_FILE, "a") as f:
-        f.write(new_title + "\n")
-
-    return new_title
+    title = title.replace("Sports eHarmony Living", "").strip()
+    candidate = title
+    suffix = 1
+    while candidate.lower() in seen_titles or candidate.lower() in existing_titles:
+        print(f"⚠️ Duplicate title '{candidate}', trying new one...")
+        candidate = f"{title} ({suffix})"
+        suffix += 1
+    seen_titles.add(candidate.lower())
+    existing_titles.add(candidate.lower())
+    return candidate
 
 def generate_product_content(title, body, category, primary_kw, related_kws):
     tone_info = CATEGORY_TONE_GUIDE.get(category, CATEGORY_TONE_GUIDE["Default"])
+    voice = tone_info["voice"]
+    sections = ", ".join(tone_info["common_sections"])
+
     prompt = f"""
-You are rewriting and optimizing a Shopify product description.
+- Write a unique, SEO‑optimized HTML product description for Shopify. 
+- The description must be at least {WORD_COUNT} words, with approximately 1% density for the primary keyword and 0.5–1% density for each related keyword. 
+- Use the following voice/tone: {voice}
+- Organize the content with sections similar to: {sections}
 
-Rules:
-- Only allowed brand name: "Sports eHarmony Living"
-- No gender-specific words.
-- Avoid specific colors.
-- Avoid hype adjectives.
-- Unique, {WORD_COUNT}+ words SEO HTML.
-- ~1% primary keyword, 0.5–1% related keywords.
-- Headings and bullet points.
-- FAQs only if relevant.
+Follow these rules exactly:
+- Do not include images, picture tags, or any gallery section.
+- Do not bold any keywords unless they are inside <h2> or <h3> headings.
+- Do not use words like “Conclusion” in any <h2> or <h3> heading.
+- Do not include a size table or size chart section.
+- Do not mention customer support, returns, customization options, or shipping details.
+- Do not include the brand name “Sports eHarmony Living” in the title.
+- Avoid gender‑specific terms (e.g., “men’s,” “women’s”) and avoid specifying colors.
+- Avoid generic hype words such as “unmatched,” “best ever,” “amazing quality,” etc.
+- Ensure the HTML is valid and Shopify‑compatible.
+- At the end of the description, include 2–3 relevant FAQs.
 
-Product title: {title}
+Title: {title}
 Description: {body}
 Primary keyword: {primary_kw}
 Related keywords: {", ".join(related_kws)}
 
-Return JSON: "description_html", "seo_title", "seo_meta".
+Return JSON: description_html, seo_title, seo_meta
 """
     try:
         response = client.chat.completions.create(
@@ -265,42 +455,37 @@ Return JSON: "description_html", "seo_title", "seo_meta".
 # MAIN
 # =============================
 def main():
-    tag_to_process = "dsers-new"
-    products = shopify_get_draft_products_with_tag(tag_to_process)
+    preload_existing_handles_titles()
+    products = get_draft_dsers_products()
 
-    if not products:
-        print(f"No draft products found with tag '{tag_to_process}'.")
-        return
+    for p in products:
+        old_handle = p["handle"]
+        old_title = p["title"]
+        tags = p.get("tags", "")
+        body = p.get("body_html", "")
+        category = p.get("product_type", "") or guess_category_from_title(old_title)
 
-    with open(LOG_FILE, "w", newline="", encoding="utf-8-sig") as logf:
-        logwriter = csv.writer(logf)
-        logwriter.writerow(["Product ID", "Old Handle", "New Handle", "Old Title", "New Title"])
+        primary_kw, related_kws = generate_keywords(old_title, body)
+        descriptor = related_kws[0] if related_kws else "product"
 
-        for p in products:
-            old_handle = p["handle"]
-            old_title = p["title"]
-            body = p.get("body_html", "") or ""
-            category = p.get("product_type", "") or guess_category_from_title(old_title)
-            old_tags = p.get("tags", "")
+        print("\n====================")
+        print(f"Title: {old_title}")
+        print(f"Primary keyword: {primary_kw}")
+        print(f"Related keywords: {related_kws}")
+        print(f"Category tone: {CATEGORY_TONE_GUIDE[category]}")
+        print("====================\n")
 
-            primary_kw, related_kws = generate_keywords(old_title, body)
-            descriptor = related_kws[0] if related_kws else "product"
-            new_handle = generate_unique_handle(primary_kw, descriptor)
+        new_handle = generate_unique_handle(primary_kw, descriptor)
+        new_desc, seo_title, seo_meta = generate_product_content(old_title, body, category, primary_kw, related_kws)
+        seo_title = ensure_unique_title(seo_title)
 
-            new_desc, seo_title, seo_meta = generate_product_content(old_title, body, category, primary_kw, related_kws)
-            seo_title = ensure_unique_title(seo_title)
+        shopify_update_product(p["id"], seo_title, new_desc, new_handle, seo_title, seo_meta)
 
-            shopify_update_product(p["id"], seo_title, new_desc, new_handle, seo_title, seo_meta, old_tags)
+        if new_handle != old_handle:
+            shopify_create_redirect(old_handle, new_handle)
 
-            if new_handle != old_handle:
-                shopify_create_redirect(old_handle, new_handle)
-
-            logwriter.writerow([p["id"], old_handle, new_handle, old_title, seo_title])
-
-            # To respect API rate limits
-            time.sleep(0.5)
-
-    print(f"✅ Done! Processed {len(products)} products. Log saved to '{LOG_FILE}'.")
+        # Remove the 'dsers-new' tag so we don't process it again
+        shopify_remove_dsers_tag(p["id"], tags)
 
 if __name__ == "__main__":
     main()
