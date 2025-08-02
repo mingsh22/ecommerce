@@ -175,11 +175,15 @@ def regenerate_unique_title_via_ai(base_title, primary_kw, related_kws):
     prompt = f"""
 The current product title "{base_title}" is a duplicate.
 Generate a new, unique, SEO-friendly title that:
+- Begin with the actual product type (e.g., "Sports Bra", "Tennis Skirt", "Yoga Pants") as detected from the primary_kw.
+- Only allowed special characters in title: "-" and "&"
+- Avoid any generic marketing lead-ins like "Shop the", "Stay Active with", "Discover our", "Experience", "Buy now".
 - Uses the primary keyword: {primary_kw}
 - Optionally uses 1–2 related keywords: {", ".join(related_kws)}
 - Max length 70 chars
 - Avoid forbidden terms, colors, gender-specific words, hype words
 - No brand name "Sports eHarmony Living"
+- Keep the title focused on describing the product clearly.
 Return only the title.
 """
     try:
@@ -213,7 +217,17 @@ def generate_product_content(title, body, category, primary_kw, related_kws):
     voice = tone_info["voice"]
     sections = ", ".join(tone_info["common_sections"])
     prompt = f"""
-Write a unique, SEO-optimized HTML product description for Shopify.
+First, generate an SEO title that:
+1. Begins with the product type (e.g., "Sports Bra", "Tennis Skirt", "Yoga Pants") as inferred from the primary_kw.
+2. Avoid generic lead-ins such as "Shop the", "Stay Active with", "Discover our", "Experience".
+3. Uses the primary keyword: {primary_kw}.
+4. Optionally includes 1–2 related keywords: {", ".join(related_kws)}.
+5. Keeps under 70 characters.
+6. Avoids forbidden terms, gender-specific words, color names, hype words, and the brand name "Sports eHarmony Living".
+7. Focuses on the product itself.
+8. Only allowed special characters in title: "-" and "&"
+
+Then, write a unique, SEO-optimized HTML product description for Shopify.
 - At least {WORD_COUNT} human readble words
 - ~1% primary keyword: {primary_kw}
 - 0.5–1% each related keyword: {", ".join(related_kws)}
@@ -223,7 +237,8 @@ Write a unique, SEO-optimized HTML product description for Shopify.
 - No "Conclusion" in headings
 - No size charts, customer support, shipping, brand name, gender terms, colors, hype words
 - Must be valid Shopify HTML
-- End with 2–3 relevant FAQs
+- End with 2–3 relevant FAQs.
+- Use Bold font for FAQ questions.
 - Do not include images, picture tags, or any gallery section.
 Return JSON: description_html, seo_title, seo_meta
 """
